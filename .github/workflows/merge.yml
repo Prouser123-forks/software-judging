@@ -7,8 +7,8 @@ on:
     types: [merge_repo]
 
 jobs:
-  hardware:
-    if: github.event.client_payload.repo == 'hardware'
+  merge:
+    name: "Merge ${{ github.event.client_payload.repo }}"
     runs-on: ubuntu-latest
 
     # https://github.com/peaceiris/actions-gh-pages/tree/61cf177907e9ac9e79986e64f4e667fbfa975c04#:~:text=If%20the%20action%20fails%20to%20push%20the%20commit%20or%20tag%20with%20the%20following%20error%3A
@@ -17,8 +17,8 @@ jobs:
       contents: write
     
     env:
-      SRC_REPO: hardware
-      SRC_BRANCH: main
+      SRC_REPO: ${{ github.event.client_payload.repo }}
+      SRC_BRANCH: ${{ github.event.client_payload.branch }}
 
     steps:
       - name: Checkout repository
@@ -34,12 +34,18 @@ jobs:
         # Don't identify as GitHub actions as this is intended for GitLab
         run: git config --global user.name "genoswitch-ci" && git config --global user.email genoswitch-ci@jcx.ovh
       
+#      - name: Merge (without committing) changes from the source repository
+#        run: git merge -s ours --allow-unrelated-histories --no-commit source/$SRC_BRANCH
+      
+#      - name: Read the source repository into a subdirectory
+#        run: git read-tree --prefix=$SRC_REPO -u source/$SRC_BRANCH
+
+      # Alternate method to avoid error from git read-tree command
+      # > error: Entry '{file}' overlaps with '{file}'.  Cannot bind.
+      # https://www.congruityservice.com/blog/fix-git-subtree-merge-wrong-directory-cannot-bind
       - name: Merge (without committing) changes from the source repository
-        run: git merge -s ours --allow-unrelated-histories --no-commit source/$SRC_BRANCH
-      
-      - name: Read the source repository into a subdirectory
-        run: git read-tree --prefix=$SRC_REPO -u source/$SRC_BRANCH
-      
+        run: git pull -s subtree -Xsubtree=firmware source $SRC_BRANCH --no-rebase --no-commit
+
       - name: Reconstruct root .gitmodules
         run: chmod +x .github/workflows/reconstruct-root-gitmodules.sh && ./.github/workflows/reconstruct-root-gitmodules.sh
       
